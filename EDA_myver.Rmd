@@ -1,0 +1,104 @@
+---
+title: "EDA_my_version"
+author: "Atharv Abhijeet Bagde"
+date: "2023-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r }
+library(readxl) 
+house_price = read_excel("/Users/atharvbagde/Documents/EDA/Mini Project/State_and_US_SA.xls", range = "A6:BA546")
+
+cpi = read.csv("/Users/atharvbagde/Documents/EDA/Mini Project/cpi.csv", header = TRUE)
+cpi$Month = paste(cpi$Year, cpi$Period,sep='')
+cpi_new = subset(cpi, select = c(Value, Month))
+
+
+merged_df = merge(house_price,cpi_new,by='Month')
+colnames(merged_df)[54] = 'CPI'
+merged_df[2:54] = apply(merged_df[2:54],2,function(row) (row-lag(row))/lag(row)*100)
+merged_df[2:54] = merged_df[2:54] - merged_df[,54]
+popu = read_csv('/Users/atharvbagde/Documents/EDA/Mini Project/population.csv')
+us_state_to_abbrev = c(
+    "Alabama"= "AL",
+    "Alaska"= "AK",
+    "Arizona"= "AZ",
+    "Arkansas"= "AR",
+    "California"= "CA",
+    "Colorado"= "CO",
+    "Connecticut"= "CT",
+    "Delaware"= "DE",
+    "Florida"= "FL",
+    "Georgia"= "GA",
+    "Hawaii"= "HI",
+    "Idaho"= "ID",
+    "Illinois"= "IL",
+    "Indiana"= "IN",
+    "Iowa"= "IA",
+    "Kansas"= "KS",
+    "Kentucky"= "KY",
+    "Louisiana"= "LA",
+    "Maine"= "ME",
+    "Maryland"= "MD",
+    "Massachusetts"= "MA",
+    "Michigan"= "MI",
+    "Minnesota"= "MN",
+    "Mississippi"= "MS",
+    "Missouri"= "MO",
+    "Montana"= "MT",
+    "Nebraska"= "NE",
+    "Nevada"= "NV",
+    "New Hampshire"= "NH",
+    "New Jersey"= "NJ",
+    "New Mexico"= "NM",
+    "New York"= "NY",
+    "North Carolina"= "NC",
+    "North Dakota"= "ND",
+    "Ohio"= "OH",
+    "Oklahoma"= "OK",
+    "Oregon"= "OR",
+    "Pennsylvania"= "PA",
+    "Rhode Island"= "RI",
+    "South Carolina"= "SC",
+    "South Dakota"= "SD",
+    "Tennessee"= "TN",
+    "Texas"= "TX",
+    "Utah"= "UT",
+    "Vermont"= "VT",
+    "Virginia"= "VA",
+    "Washington"= "WA",
+    "West Virginia"= "WV",
+    "Wisconsin"= "WI",
+    "Wyoming"= "WY",
+    "District of Columbia"= "DC",
+    "American Samoa"= "AS",
+    "Guam"= "GU",
+    "Northern Mariana Islands"= "MP",
+    "Puerto Rico"= "PR",
+    "United States Minor Outlying Islands"= "UM",
+    "U.S. Virgin Islands"= "VI"
+)
+
+popu$`NHGIS Integrated State Name` = us_state_to_abbrev[popu$`NHGIS Integrated State Name`]
+setDT(merged_df)
+
+
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
