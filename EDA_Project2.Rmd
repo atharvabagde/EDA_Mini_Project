@@ -1,10 +1,3 @@
----
-title: "EDA_miniProject"
-author: "Hyeseon Seo"
-date: "2023-09-14"
-output: pdf_document
----
-
 The researcher’s major research question is: How have house prices in U.S. states changed over the last few decades, and are changes in prices related to population in some way?  
 
 DATA
@@ -17,7 +10,7 @@ DATA
 
 
 ```{r}
-library(tidyverse)
+
 library(readxl) 
 library(gapminder)
 cb_palette = c("#999999", "#E69F00", "#56B4E9", "#009E73",
@@ -27,30 +20,38 @@ library(ggplot2)
 house_price = read_excel("State_and_US_SA.xls", range = "A6:BA546")
 cpi = read.csv("cpi.csv", header = TRUE)
 
-house_price$Month =  apply(house_price, 1, function(row) as.integer(unlist(strsplit(row["Month"], "M"))[1]))
-colnames(house_price)[1]= "Year"
-house_price = aggregate(.~ Year, house_price, FUN=mean)
 
-#cpi$Month = paste(cpi$Year, cpi$Period,sep='')
-cpi_new = subset(cpi, select = c(Value, Year))
-cpi_new = aggregate(Value~ Year, cpi_new, FUN=mean)
-merged_df = merge(cpi_new,house_price,by='Year')
+#Converting month to date-time
+house_price$Month =  apply(house_price, 1, function(row) as.Date(paste(gsub("M","-",row[1]),"-01", sep="")))
+house_price$Month = as.Date(house_price$Month, origin='1970-01-01')
+house_price$Year = as.integer(format(house_price$Month, "%Y"))
+
+
+#Converting month to date-time
+cpi$Month = paste(cpi$Year, cpi$Period,sep='')
+cpi$Month = apply(cpi, 1, function(row) as.Date(paste(gsub("M","-",row[6]),"-01", sep="")))
+cpi$Month = as.Date(cpi$Month, origin='1970-01-01')
+cpi_new = subset(cpi, select = c(Value, Month))
+
+#Merging the two dataframes
+merged_df = merge(cpi_new, house_price, by = 'Month')
 colnames(merged_df)[2] = "CPI"
 
+which(merged_df$Month == "2000-12-01") #312
+
 # inflation adjusted house price
-#merged_df$CPI_factor = merged_df$CPI / lag(merged_df$CPI)
-P = merged_df[3:54] 
+P = merged_df[3:53] 
 p2 = P/ merged_df$CPI 
-C = (100/t(p2[26,]))
-merged_df[3:54] = p2*C
-merged_df[26,] # make the house price of each state in 2000 around 100
+p2[312,]
+C = (100/t(p2[312,]))
+merged_df[3:53] = p2*C 
+merged_df[312,] # make the house price of each state in 2000 Dec to 100
 
-
+merged_df = aggregate(.~ Year, merged_df, FUN=mean)[,-2]
 colnames(merged_df)[54] = 'Adjusted'
+merged_df
 
 ```
-
-
 
 
 1. House prices over time: How have house prices in the U.S changed from 1975 to 2019, after adjusting for inflation, i.e. relative to the CPI? (We stop in 2019 to avoid having to worry about COVID effects.) 
@@ -73,28 +74,21 @@ merged_df_long <- merged_df[-1,] |>
 merged_df_long$Year = as.numeric(merged_df_long$Year)
 A = ggplot() + geom_line(data = merged_df_long, 
                          aes(x = Year, y = HousePrice, group = state, labels(state)), alpha = 0.25)+ geom_point() +
-  ggtitle("Figure 1. House price for each state over the year") + 
+  ggtitle("House price for each state over the year") + 
   scale_x_continuous(breaks = c(1975, 1985, 1995, 2005, 2015, 2025 )) +
-  geom_text(data=subset(merged_df_long, HousePrice > 360 | HousePrice < 17),
+  geom_text(data=subset(merged_df_long, HousePrice > 250 | HousePrice < 51),
             aes(Year,HousePrice,label=state))
-A
+A  
 
 # facet by each state
-wrap_plot <- A + facet_wrap(~state) +
-  scale_x_continuous(breaks = c(1975, 1997, 2019)) +
-  scale_y_continuous(breaks = c(50, 250)) +
-  labs(
-    title = "Figure 2. Housing Price Index for Each State (1975-2019)"
-  )
-wrap_plot
+A + facet_wrap(~state)
 
 summary(merged_df_long$HousePrice)
  
 ```
 
-In Figure 1, a majority of states appear to feature an HPI decrease that begins roughly around 1980. Some states begin to reverse course and feature an increase in the latter-half of the decade. Setting the baseline at 100 HPI is can also be seen from the graph. The most consistent feature from Figure 1 is the housing bubble in the early oughts. This is where housing prices were increasing and investors could sell houses for more money, even if borrowers defaulted. Lenders made sub prime mortgages to low-income borrowers. Borrowers' inability to keep up with payments every months led to foreclosures and more houses were back on the market. However, the demand was down and couldn't meet the supply, so the price of homes were collapsing. This burst is what we see in every state around 2006-2007 and was an important cause to the Great Recession in the U.S. 
-
-We can see how each state behaved in Figure 2. Many states in the Midwest and upper South regions in the United States feature roughly flat curves (e.g., Tennessee and Kentucky). Some states feature a dramatic increase in HPI, such as D.C. and Hawaii. These states are relatively small, so there may be a connection with population. Although, Oregon and Virginia feature HPI increases as well. The states that feature decreases are rural states out West like Kansas and Oklahoma, and rural southern states such as West Virginia and Mississippi. Some states reacted more dramatically to the Bubble and Recession than others. While many states remained flat, states like Nevada, California, and Arizona witnessed steep decreases after the Housing Crisis of 2006. 
+follows sign curve, peak around 1978, 1987, 2008, down again around 2010 
+housing price index start around 100 at the end of year of 2000 thus they converge
 
 ## region
 ```{r}
@@ -102,7 +96,6 @@ We can see how each state behaved in Figure 2. Many states in the Midwest and up
 
 region = read.delim("state_abbrevs.txt", sep="", header= TRUE)
 colnames(region)[2] = 'state' 
-region
 
 # adding regions (Northeast, Midwest, South, and West)
 merged_region = merge(merged_df_long,region[-1], by='state')
@@ -146,50 +139,6 @@ MW
 ```
 
 
-
-```
-
-
-In the mid oughts, all regions drop due to the financial crash
-1983 house crisis.
-early 2000 housing bubles (2003-2007)
-Also, all regions begin to reverse recession trends due to the economic recovery in the mid 2010s
-
-
-
-
-### how to combine two different files and data analysis all together?
-
-
-2. Population density and changes in house prices: Does present-day population density explain changes in house prices by state from 1975 to 2019? Are there outliers to the relationship, and if so, is there a principled reason to drop them? What does the relationship look like after dropping or downweighting outliers? Does the relationship vary by region? If so, how?
-
-```{r}
-
-pop00 = read.delim("censuspop2000.txt", header = TRUE, sep = "")
-pop10 = read.delim("censuspop2010.txt", header = TRUE, sep = "")
-pop19 = read.delim("censuspop2019.txt", header = TRUE, sep = "") 
-# pop19, until row 52 : population
-
-
-pop = c(sum(pop00$value), sum(pop10$value)) #, sum(pop19$value))
-density = c(pop00$value, pop10$value)/pop
-
-
-
-```
-
-
-
-
-
-3. Changes in population and changes in house prices: Is there a relationship between changes in population and changes in house prices? To answer this, look at changes in each state over three time periods: 1990 to 2000, 2000 to 2010, and 2010 to 2019. Analyze the three time periods separately. Has the relationship changed over the three time periods? Are there variations by region?
-
-
-
-
-
-
-4. Conclusion: What does all of this tell you about the relationship between house prices and population? Is there a plausible cause-and-effect story you can tell that’s consistent with the data and with common sense?
 
 
 
